@@ -1,0 +1,1198 @@
+---
+title: "Prayer Survey"
+author: "Eleanor Schille-Hudson"
+date: "4/22/2022"
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+# Prelim (libraries, data, processing, re-coding)
+
+## Loading Packages
+I'm trying out a new and more efficient way of loading in packages! 
+```{r}
+# Package names
+packages <- c("ggplot2", "dplyr", "tidyr", "knitr", "corrplot", "tidyverse", "tidytext", "psych", "tm", "SnowballC", "wordcloud", "RColorBrewer", "RCurl", "XML" #, "qdap", "syuzhet"
+              )
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+```
+
+## Loading Data 
+
+```{r}
+# Setting working directory
+#setwd("~/Library/CloudStorage/OneDrive-IndianaUniversity/Files/Research Projects/Prayer/Survey")
+
+# Loading in {{FAKE}} Qualtrics survey data
+#fake <- read_csv("test_prayer_surveydata.csv")
+
+# Loading in Qualtrics survey data
+raw <- read_csv("prayer_survey_cleaned.csv")
+
+# Loading in the numerically coded version for a corrplot 
+num_raw <- read_csv("prayer_numericcodes_cleaned.csv")
+```
+
+## Cleaning up any data mess
+```{r}
+# Main Qualtrics file with text Likert response
+# Renaming any column names read in ambiguously/weirdly.
+df <- raw %>% 
+  dplyr::rename(importance_rel = importance,
+         importance_pray = importance_1,
+         gender = pronouns, 
+         gender_text = pronouns_4_TEXT, 
+         heart_text = heart_6_TEXT,
+         others_text = others_6_TEXT,
+         intervene_text = intervene_6_TEXT)
+
+# For FAKE dataset, removing row that recorded weird numbers instead of Likert text responses
+# fake <- fake %>% 
+#   filter(age > 30) #lol this is just a quick way of getting rid of Eli's row
+
+#who didn't finish?
+df_DNF <- df %>% filter(Finished==FALSE)
+
+# FILTERING the data frame to get rid of people who didn't do the survey
+## also removing NA rows 
+df_clean <- df %>% filter(!is.na(consent), !is.na(gender)) 
+#-------------------------------------------------------------------------------------
+
+# Numerically coded version
+# Renaming any column names read in ambiguously/weirdly
+num_df <- num_raw %>% 
+  dplyr::rename(importance_rel = importance,
+         importance_pray = importance_1,
+         gender = pronouns, 
+         gender_text = pronouns_4_TEXT, 
+         heart_text = heart_6_TEXT,
+         others_text = others_6_TEXT,
+         intervene_text = intervene_6_TEXT)
+
+# FILTERING the data frame to get rid of people who didn't do the survey
+num_df_clean <- num_df %>% filter(!is.na(consent), !is.na(gender)) 
+
+# Recoding and standardizing all the values so they're ready for correlations later (new range is 0-1 for all)
+## Remember that I need to reverse code: importance_rel, importance_pray, instruction, ACTS, heart, others, intervene.
+## DO WEIRD ONES SEPARATELY: [weird ones] churched, freq_prayer, and reverse coded ones above
+num_df_clean <- num_df_clean %>% mutate(
+                     age=age/100,
+                     gender=(gender-1)/2,
+                     aloud_silent=(aloud_silent-1)/4,
+                     rote=(rote-1)/4,
+                     ACTS_use=(ACTS_use-1)/4,
+                     group_alone=(group_alone-1)/4,
+                     problem_articulation=(problem_articulation-1)/4, 
+                     journal=(journal-1)/4,
+                     self=(self-1)/4,
+                     friend=(friend-1)/4,
+                     change=(change-1)/4,
+                     switch=(switch-1)/4,
+                     plan=(plan-1)/4,
+                     optimism=(optimism-1)/4,
+                     delegate=(delegate-1)/4,
+                     conflict=(conflict-1)/4,
+                     connected=(connected-6)/4,
+                     positive=(positive-1)/4,
+                     charity=(charity-1)/4,
+                     values=(values-1)/4,
+                     relief=(relief-1)/4,
+                     motivated=(motivated-1)/4,
+                     regret=(regret-1)/4,
+                     #heart=(heart-1)/5, 
+                     #others=(others-1)/5,
+                     #intervene=(intervene-1)/5,
+                           )
+#doing the weird ones now
+#importance_rel
+num_df_clean$importance_rel <- ifelse(df_clean$importance_rel=="Strongly disagree", 0,
+                   ifelse(df_clean$importance_rel=="Somewhat disagree", 1,
+                   ifelse(df_clean$importance_rel=="Neither agree nor disagree", 2,
+                   ifelse(df_clean$importance_rel=="Somewhat agree", 3,
+                   4))))
+num_df_clean$importance_rel <- num_df_clean$importance_rel/4 #standardizing!
+
+#importance_pray
+num_df_clean$importance_pray <- ifelse(df_clean$importance_pray=="Strongly disagree", 0,
+                   ifelse(df_clean$importance_pray=="Somewhat disagree", 1,
+                   ifelse(df_clean$importance_pray=="Neither agree nor disagree", 2,
+                   ifelse(df_clean$importance_pray=="Somewhat agree", 3,
+                   4))))
+num_df_clean$importance_pray <- num_df_clean$importance_pray/4 #standardizing!
+
+#instruction
+num_df_clean$instruction <- ifelse(df_clean$instruction=="None at all", 0,
+                   ifelse(df_clean$instruction=="A little", 1,
+                   ifelse(df_clean$instruction=="A moderate amount", 2,
+                   ifelse(df_clean$instruction=="A lot", 3,
+                   4))))
+num_df_clean$instruction <- num_df_clean$instruction/4 #standardizing!
+
+#ACTS
+num_df_clean$ACTS <- ifelse(df_clean$ACTS=="No", 0,
+                   ifelse(df_clean$ACTS=="I'm not sure", 1,
+                   2))
+num_df_clean$ACTS <- num_df_clean$ACTS/2 #standardizing!
+
+#churched
+num_df_clean$churched <- ifelse(df_clean$churched=="Never", 0,
+                   ifelse(df_clean$churched=="On special occasions (like Christmas & Easter)", 1,
+                   ifelse(df_clean$churched=="A few times a year", 2,
+                   ifelse(df_clean$churched=="Once a month", 3,
+                   ifelse(df_clean$churched=="A few times a month", 4,
+                   ifelse(df_clean$churched=="Once a week", 5,
+                   6))))))
+num_df_clean$churched <- num_df_clean$churched/6 #standardizing!
+
+
+#freq_prayer
+num_df_clean$freq_prayer <- ifelse(df_clean$freq_prayer=="Never", 0,
+                   ifelse(df_clean$freq_prayer=="A few times a year", 1,
+                   ifelse(df_clean$freq_prayer=="Once a month", 2,
+                   ifelse(df_clean$freq_prayer=="A few times a month", 3,
+                   ifelse(df_clean$freq_prayer=="Once a week", 4,
+                   ifelse(df_clean$freq_prayer=="Multiple times a week", 5,
+                   ifelse(df_clean$freq_prayer=="Daily", 6,
+                   7)))))))
+num_df_clean$freq_prayer <- num_df_clean$freq_prayer/7 #standardizing!
+
+#-------- I need to figure out how to deal with these. There are a lot of people who chose "other". For now, I'm putting "other" in the middle, so it doesn't tip the scale. Later I'll see if I can code it out?
+
+#heart
+num_df_clean$heart <- ifelse(df_clean$heart=="Never", 0,
+                   ifelse(df_clean$heart=="Sometimes", 1,
+                   ifelse(df_clean$heart=="Other", 2, # <------ this is where "other" is for now!
+                   ifelse(df_clean$heart=="About half the time", 3,
+                   ifelse(df_clean$heart=="Most of the time", 4,
+                   5)))))
+num_df_clean$heart <- num_df_clean$heart/5 #standardizing!
+
+#others
+num_df_clean$others <- ifelse(df_clean$others=="Never", 0,
+                   ifelse(df_clean$others=="Sometimes", 1,
+                   ifelse(df_clean$others=="Other", 2, # <------ this is where "other" is for now!
+                   ifelse(df_clean$others=="About half the time", 3,
+                   ifelse(df_clean$others=="Most of the time", 4,
+                   5)))))
+num_df_clean$others <- num_df_clean$others/5 #standardizing!
+
+#intervene
+num_df_clean$intervene <- ifelse(df_clean$intervene=="Never", 0,
+                   ifelse(df_clean$intervene=="Sometimes", 1,
+                   ifelse(df_clean$intervene=="Other", 2, # <------ this is where "other" is for now!
+                   ifelse(df_clean$intervene=="About half the time", 3,
+                   ifelse(df_clean$intervene=="Most of the time", 4,
+                   5)))))
+num_df_clean$intervene <- num_df_clean$intervene/5 #standardizing!
+
+## for this df I'm also filtering out anybody who said they never pray, i'm doing it down here because the size of df had to match for the weird recoding to work 
+num_df_clean <- num_df_clean %>% filter(!is.na(importance_pray))
+```
+63 people didn't finish, but some of this did almost all the survey. 
+49 people didn't even consent...so basically didn't start. I'll exclude these. 
+
+Filtering this out, there were a total of `r nrow(df_clean)` participants who completed the survey. 
+
+## Joining num_df_clean to df_clean 
+```{r}
+colnames(num_df_clean) <- paste(colnames(num_df_clean),"num",sep="_") #adding _num to every column in num_df_clean
+num_df_clean <- dplyr::rename(num_df_clean, ResponseId = ResponseId_num) #removing _num from ResponseId (for join)
+
+#joining dfs 
+df_clean <- left_join(df_clean, num_df_clean)
+```
+
+## Recoding Variables as Factors 
+Going through and re-coding all the variables read in as character type that should be factors.
+```{r}
+#these are re-coded in the order that participants took the survey 
+
+df_clean <- df_clean %>% mutate(gender=factor(gender),
+                        churched=factor(churched, levels=c("Never", "On special occasions (like Christmas & Easter)", "A few times a year", "Once a month", "A few times a month", "Once a week", "More than once a week")),
+                        importance_rel=factor(importance_rel, levels=c("Strongly agree", "Somewhat agree", "Neither agree nor disagree", "Somewhat disagree", "Strongly disagree")),
+                        freq_prayer=factor(freq_prayer, levels=c("Never", "A few times a year", "Once a month", "A few times a month", "Once a week", "Multiple times a week", "Daily", "Multiple times a day")),
+                        importance_pray=factor(importance_pray, levels=c("Strongly agree", "Somewhat agree", "Neither agree nor disagree", "Somewhat disagree", "Strongly disagree")),
+                        aloud_silent=factor(aloud_silent, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                        rote=factor(rote, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                        instruction=factor(instruction, levels=c("A great deal", "A lot", "A moderate amount", "A little", "None at all")),
+                        ACTS=factor(ACTS, levels=c("Yes", "I'm not sure", "No")),
+                        ACTS_use=factor(ACTS_use, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                        group_alone=factor(group_alone, levels=c("Never pray in a group (always pray alone)", "Sometimes pray in a group", "About half the time praying in a group", "Most of the time pray in a group", "Always pray in a group (never pray alone)")),
+                     problem_articulation=factor(problem_articulation, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")), 
+                     journal=factor(journal, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     self=factor(self, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     friend=factor(friend, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     change=factor(change, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     switch=factor(switch, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     plan=factor(plan, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     optimism=factor(optimism, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     delegate=factor(delegate, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     responsibility=factor(responsibility, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     conflict=factor(conflict, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     connected=factor(connected, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     positive=factor(positive, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     charity=factor(charity, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     values=factor(values, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     relief=factor(relief, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     motivated=factor(motivated, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     regret=factor(regret, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     heart=factor(heart, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     others=factor(others, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     intervene=factor(intervene, levels=c("Never", "Sometimes", "About half the time", "Most of the time", "Always")),
+                     `Duration (in seconds)`=as.numeric(`Duration (in seconds)`)
+                           )
+```
+
+# Analysis
+
+## Summary Stats of Basic Info 
+
+### Time Taken
+```{r}
+# how long did it take people to complete the survey?
+
+## creating duration in minutes variable 
+df_clean <- df_clean %>% mutate(dur_min = `Duration (in seconds)`/60)
+
+# breakdown of time taken 
+summary(df_clean$dur_min)
+avg_time = mean(df_clean$dur_min)
+avg_time
+
+# histogram of time taken 
+dur <- ggplot(df_clean, aes(x=dur_min)) + geom_histogram(fill="dodgerblue1") + theme_light() + ggtitle("Plot Time Duration in Minutes")
+show(dur)
+```
+### Age 
+```{r}
+summary(df_clean$age)
+
+# histogram of time taken 
+age_hist <- ggplot(df_clean, aes(x=age)) + geom_histogram(fill="dodgerblue1") + theme_light() + ggtitle("Distribution of ages")
+show(age_hist)
+```
+
+### Gender Information
+```{r}
+# breakdown of gender info 
+summary(df_clean$gender)
+gen_freq <- as.data.frame(table(df_clean$gender))
+
+# bar plot of gender 
+gen <- ggplot(gen_freq, aes(x = Var1, y = Freq, fill = Var1)) +  # Plot with values on top
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = Freq), vjust = 0)
+show(gen)
+
+# print any gender text
+df_clean$gender_text
+```
+
+## Results broken down by survey question
+
+For each question, I want a breakdown of numbers, percentages, and a bar plot. 
+I am thinking that I want the bar plot and then the numbers/percentage breakdown in text so that it's just ~written~, you know?
+
+### New plot of all items for the paper in one place (Kara style!)
+
+```{r, fig.width = 8, fig.asp = 0.7}
+df_plot <- df_clean %>%
+  select(ResponseId,
+         problem_articulation, change, 
+         plan, conflict, 
+         friend, self,
+         delegate, relief) %>% 
+  pivot_longer(cols = -ResponseId,
+               names_to = "question",
+               values_to = "response",
+               values_drop_na = TRUE) %>% 
+  mutate(response_num = as.numeric(response) - 1) 
+
+count_data <- df_plot %>%
+  group_by(question, response_num) %>%
+  summarise(count = n()) %>%
+  ungroup() %>% 
+  group_by(question) %>% 
+  mutate(m = mean(count*response_num/sum(count)), sd = mean(Hmisc::wtd.var(response_num,count)))
+  
+
+#might be able to use stat summary and weight it 
+count_data %>%
+  ggplot(aes(x = response_num, y = question, color = question)) + 
+    # geom_jitter(
+    #   height = 0.25, width = 0.25, 
+    #   color = "black", alpha = 0.2, size = 0.5) +
+  geom_point(aes(size = count), color = "black", alpha = 0.2) +
+  scale_size_continuous(range = c(2, 10)) +
+  geom_pointrange( 
+    aes(x = m, xmin = m - sd, xmax = m + sd), 
+    fatten = 4) +
+  # geom_pointrange(
+  #   data = df_plot %>%
+  #     group_by(question) %>%
+  #     # if we wanted bootstraped 95% CIs instead of ±1 SD:
+  #     # multi_boot_standard(col = "prayfreqmin", na.rm = T) %>%
+  #     summarise(mean = mean(response_num),
+  #               sd = sd(response_num)) %>%
+  #     ungroup(),
+  #   aes(x = mean, xmin = mean - sd, xmax = mean + sd),
+  #   fatten = 4) +
+  # geom_text(
+  #   data = . %>% count(country, site, religion),
+  #   aes(y = 4.5, label = paste0("(n=", n, ")")),
+  #   size = 2, color = "black") +
+  scale_color_brewer(palette = "Set2") +
+  #theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)) +
+  guides(color = guide_none()) +
+  labs(title = "Responses to Prayer Survey Questions",
+       caption = "Error bars are ±1 SD",
+       x = "Response", 
+       y = "Questions")
+
+```
+
+
+### How often they go to church
+```{r}
+# breakdown of church info 
+summary(df_clean$churched)
+church_freq <- as.data.frame(table(df_clean$churched))
+
+# bar plot of churched
+church_plot <- ggplot(church_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often do you go to church?")
+show(church_plot)
+```
+
+### Importance of Religion
+```{r}
+# breakdown of importance of religion info 
+summary(df_clean$importance_rel)
+importance_rel_freq <- as.data.frame(table(df_clean$importance_rel))
+
+# bar plot of importance_rel 
+importance_rel_plot <- ggplot(importance_rel_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10), name="Importance") +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ylab("Frequency") +
+  ggtitle("My faith/religion/spirituality is important to me:")
+show(importance_rel_plot)
+```
+
+### Frequency of Prayer
+```{r}
+# breakdown of info 
+summary(df_clean$freq_prayer)
+freq_prayer_freq <- as.data.frame(table(df_clean$freq_prayer))
+
+# bar plot 
+freq_prayer_plot <- ggplot(freq_prayer_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often do you spontaneously pray by yourself?")
+show(freq_prayer_plot)
+```
+
+### Importance of Prayer
+```{r}
+# breakdown of info 
+summary(df_clean$importance_pray)
+importance_pray_freq <- as.data.frame(table(df_clean$importance_pray))
+
+# bar plot
+importance_pray_plot <- ggplot(importance_pray_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("Prayer is an important part of my faith life:")
+show(importance_pray_plot)
+```
+
+### Praying aloud vs silently
+```{r}
+# breakdown of info 
+summary(df_clean$aloud_silent)
+aloud_silent_freq <- as.data.frame(table(df_clean$aloud_silent))
+
+# bar plot 
+aloud_silent_plot <- ggplot(aloud_silent_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often do you pray aloud (as opposed to silently)?")
+show(aloud_silent_plot)
+```
+
+### Rote
+```{r}
+# breakdown of info 
+summary(df_clean$rote)
+rote_freq <- as.data.frame(table(df_clean$rote))
+
+# bar plot
+rote_plot <- ggplot(rote_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often are your prayers read or recited from memory?")
+show(rote_plot)
+```
+
+
+### Instruction received about prayer
+```{r}
+# breakdown of church info 
+summary(df_clean$instruction)
+instruction_freq <- as.data.frame(table(df_clean$instruction))
+
+# bar plot of gender 
+instruction_plot <- ggplot(instruction_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("Have you received instruction about how to pray?")
+show(instruction_plot)
+
+```
+
+
+### ACTS 
+```{r}
+# breakdown of church info 
+summary(df_clean$ACTS)
+ACTS_freq <- as.data.frame(table(df_clean$ACTS))
+
+# bar plot of gender 
+ACTS_plot <- ggplot(ACTS_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("Have you heard of the A.C.T.S. model of prayer?")
+show(ACTS_plot)
+
+```
+
+### ACTS_use
+```{r}
+# breakdown of church info 
+summary(df_clean$ACTS_use)
+ACTS_use_freq <- as.data.frame(table(df_clean$ACTS_use))
+
+# bar plot of gender 
+ACTS_use_plot <- ggplot(ACTS_use_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("Do you use the A.C.T.S. model when you pray?")
+show(ACTS_use_plot)
+
+```
+
+
+### Praying in a group vs alone
+```{r}
+# breakdown of church info 
+summary(df_clean$group_alone)
+group_alone_freq <- as.data.frame(table(df_clean$group_alone))
+
+# bar plot of gender 
+group_alone_plot <- ggplot(group_alone_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 15)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often do you pray alone vs. in a group?")
+show(group_alone_plot)
+
+
+group_alone_plot <- ggplot(df_clean, aes(x=group_alone)) + geom_bar(fill="dodgerblue1") + theme_light() + 
+  theme( axis.text.x = element_text( angle = 45,  hjust = 1 ) ) +
+  ggtitle("How often do you pray alone vs. in a group?")
+show(group_alone_plot)
+```
+
+
+### Problem articulation
+```{r, fig.asp = 1}
+
+summary(df_clean$problem_articulation)
+problem_articulation_freq <- as.data.frame(table(df_clean$problem_articulation))
+
+
+problem_articulation_plot <- ggplot(problem_articulation_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = -0.25, size = 6) +
+  labs(title = "Does prayer help you understand a problem \nyou are facing?",
+       x = "",
+       y = "Frequency") + 
+  theme(plot.title = element_text(size = 20),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 17))
+
+show(problem_articulation_plot)
+
+```
+
+
+### Journal
+```{r}
+# breakdown of church info 
+summary(df_clean$journal)
+journal_freq <- as.data.frame(table(df_clean$journal))
+
+# bar plot of gender 
+journal_plot <- ggplot(journal_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("Does prayer feel like journaling or writing something in your diary?")
+show(journal_plot)
+
+```
+
+
+### Self
+```{r, fig.asp = 1}
+# breakdown of church info 
+summary(df_clean$self)
+self_freq <- as.data.frame(table(df_clean$self))
+
+self_plot <- ggplot(self_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = -0.25, size = 6) +
+  labs(title = "Does prayer feel like talking to yourself?",
+       x = "",
+       y = "Frequency") + 
+  theme(plot.title = element_text(size = 20),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 17))
+
+show(self_plot)
+
+```
+
+
+### Friend
+```{r, fig.asp = 1}
+# breakdown of church info 
+summary(df_clean$friend)
+friend_freq <- as.data.frame(table(df_clean$friend))
+
+friend_plot <- ggplot(friend_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = -0.25, size = 6) +
+  labs(title = "Does prayer feel like talking something \nover with someone else?",
+       x = "",
+       y = "Frequency") + 
+  theme(plot.title = element_text(size = 20),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 17))
+
+show(friend_plot)
+
+```
+
+
+### Change
+```{r, fig.asp = 1}
+# breakdown of church info 
+summary(df_clean$change)
+change_freq <- as.data.frame(table(df_clean$change))
+
+change_plot <- ggplot(change_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = -0.25, size = 6) +
+  labs(title = "How often does praying about a problem \nchange the way you see it?",
+       x = "",
+       y = "Frequency") + 
+  theme(plot.title = element_text(size = 20),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 17))
+
+show(change_plot)
+
+```
+
+
+### Switch
+```{r}
+# breakdown of church info 
+summary(df_clean$switch)
+switch_freq <- as.data.frame(table(df_clean$switch))
+
+# bar plot of gender 
+switch_plot <- ggplot(switch_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle(str_wrap("How often have you started to pray about one thing, but find yourself praying about something else?"))
+show(switch_plot)
+```
+
+
+### Plan
+```{r, fig.asp = 1}
+# breakdown of church info 
+summary(df_clean$plan)
+plan_freq <- as.data.frame(table(df_clean$plan))
+
+
+
+plan_plot <- ggplot(plan_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = -0.25, size = 6) +
+  labs(title = "How often do you feel like praying gives you \na clear sense of what action you should \ntake after you pray?",
+       x = "",
+       y = "Frequency") + 
+  theme(plot.title = element_text(size = 20),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 17))
+
+
+
+show(plan_plot)
+
+```
+
+
+### Optimism
+```{r}
+# breakdown of church info 
+summary(df_clean$optimism)
+optimism_freq <- as.data.frame(table(df_clean$optimism))
+
+# bar plot of gender 
+optimism_plot <- ggplot(optimism_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle(str_wrap("How often does prayer make you feel optimistic that there is a constructive solution to the problem you are praying about?"))
+show(optimism_plot)
+
+```
+
+
+### Delegate
+```{r, fig.asp = 1}
+# breakdown of church info 
+summary(df_clean$cdelegate)
+delegate_freq <- as.data.frame(table(df_clean$delegate))
+
+
+delegate_plot <- ggplot(delegate_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = -0.25, size = 6) +
+  labs(title = "When you are praying, how often do you \n'give it to God'?",
+       x = "",
+       y = "Frequency") + 
+  theme(plot.title = element_text(size = 20),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 17))
+
+show(delegate_plot)
+
+```
+
+### Responsibility (this one is contingent on the last question)
+```{r}
+# breakdown of church info 
+summary(df_clean$responsibility)
+responsibility_freq <- as.data.frame(table(df_clean$responsibility))
+
+# bar plot of gender 
+responsibility_plot <- ggplot(responsibility_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle(str_wrap("On the occasions when you 'give something over to God,' how often do you retain responsibility over part of the solution?"))
+show(responsibility_plot)
+
+```
+
+
+### Conflict
+```{r, fig.asp = 1}
+# breakdown of info 
+summary(df_clean$conflict)
+conflict_freq <- as.data.frame(table(df_clean$conflict))
+
+conflict_plot <- ggplot(conflict_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = -0.25, size = 6) +
+  labs(title = "How often does prayer help you resolve \nconflict with someone else?",
+       x = "",
+       y = "Frequency") + 
+  theme(plot.title = element_text(size = 20),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 17))
+
+show(conflict_plot)
+```
+
+
+### Connected
+```{r}
+# breakdown of info 
+summary(df_clean$connected)
+connected_freq <- as.data.frame(table(df_clean$connected))
+
+# bar plot 
+connected_plot <- ggplot(connected_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often does prayer make you feel more connected to the people you are praying about?")
+show(connected_plot)
+
+```
+
+
+### Positive
+```{r}
+# breakdown of info 
+summary(df_clean$positive)
+positive_freq <- as.data.frame(table(df_clean$positive))
+
+# bar plot 
+positive_plot <- ggplot(positive_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle(str_wrap("When you pray about someone, does it make you feel more positively towards them?"))
+show(positive_plot)
+
+```
+
+
+### Charity
+```{r}
+# breakdown of church info 
+summary(df_clean$charity)
+charity_freq <- as.data.frame(table(df_clean$charity))
+
+# bar plot of gender 
+charity_plot <- ggplot(charity_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("Do you feel more charitable towards a person who is difficult for you because of praying for them?")
+show(charity_plot)
+
+```
+
+
+### Values
+```{r}
+# breakdown of info 
+summary(df_clean$values)
+values_freq <- as.data.frame(table(df_clean$values))
+
+# bar plot 
+values_plot <- ggplot(values_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often does prayer remind you of important values?")
+show(values_plot)
+
+```
+
+
+### Relief
+```{r, fig.asp = 1}
+# breakdown of info 
+summary(df_clean$relief)
+relief_freq <- as.data.frame(table(df_clean$relief))
+
+relief_plot <- ggplot(relief_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = -0.25, size = 6) +
+  labs(title = "How often do you feel a sense of relief \nafter you pray?",
+       x = "",
+       y = "Frequency") + 
+  theme(plot.title = element_text(size = 20),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 17))
+
+show(relief_plot)
+
+```
+
+
+### Motivated
+```{r}
+# breakdown of church info 
+summary(df_clean$motivated)
+motivated_freq <- as.data.frame(table(df_clean$motivated))
+
+# bar plot of gender 
+motivated_plot <- ggplot(motivated_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle(str_wrap("How often does prayer make you feel more motivated to tackle a problem in your life?"))
+show(motivated_plot)
+
+```
+
+
+### Regret 
+```{r}
+# breakdown of church info 
+summary(df_clean$regret)
+regret_freq <- as.data.frame(table(df_clean$regret))
+
+# bar plot of gender 
+regret_plot <- ggplot(regret_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often do you finish a prayer wishing you had prayed something different?")
+show(regret_plot)
+
+```
+
+
+### Heart
+```{r}
+# breakdown of info 
+summary(df_clean$heart)
+heart_freq <- as.data.frame(table(df_clean$heart))
+
+# bar plot 
+heart_plot <- ggplot(heart_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle(str_wrap("How often do you think God makes internal changes within you as a result of your prayer?"))
+show(heart_plot)
+
+```
+
+
+### Others
+```{r}
+# breakdown of church info 
+summary(df_clean$others)
+others_freq <- as.data.frame(table(df_clean$others))
+
+# bar plot of gender 
+others_plot <- ggplot(others_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle(str_wrap("How often do you think God makes internal changes within someone else as a result of your prayer?"))
+show(others_plot)
+
+```
+
+
+### Intervene
+```{r}
+# breakdown of church info 
+summary(df_clean$intervene)
+intervene_freq <- as.data.frame(table(df_clean$intervene))
+
+# bar plot of gender 
+intervene_plot <- ggplot(intervene_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle(str_wrap("How often do you think God physically intervenes in a situation as a result of your prayer?"))
+show(intervene_plot)
+
+```
+### Church type
+```{r}
+# list of church types
+df_clean$church_type
+
+#lowercase everything to be able to sort through 
+df_clean <- df_clean %>% mutate(church_type_fix = tolower(df_clean$church_type))
+
+df_clean$church_type_fix <- gsub("[()]", "", df_clean$church_type_fix) #removing parentheses 
+df_clean$church_type_fix <- gsub("’", "", df_clean$church_type_fix) #removing apostrophes
+
+#categorizing responses
+df_clean$church_type_fix <- df_clean$church_type_fix %>% 
+  gsub(pattern="you mean faith tradition\\? catholic", replacement = "catholic") %>%
+  gsub(pattern="roman catholic parish|roman catholic|catholic parish|catholic/episcopal", replacement="catholic") %>% 
+  gsub(pattern="anglican|anglican catholic|episcopal church|episcopalian|episcopal anchorhold|episcopal church - but only to sing in the choir|episcopal church christian|lds and episcopalian|episcopal christian", replacement="episcopal") %>%
+  gsub(pattern="non-denominational|non-denominational christian|a non-denominational house church and a non-denominational “regular” sunday morning church sometimes|non denomination|non denomination christian & catholic online|non denominational|non denominational christian|non-denomenational|nondenominational christian church|^nondenominational and methodist depending on if im at home or college$", replacement="nondenominational") %>%
+  gsub(pattern="liturgical baptist",replacement="baptist") %>%
+  gsub(pattern="evangelical presbyterian|evangelical prebyterian|christian presbyterian",replacement="presbyterian") %>%
+  gsub(pattern="united methodist|wesleyan|currently online, united methodist|on-line united methodistchurch|umc",replacement="methodist") %>%
+  gsub(pattern="evangelical lutheran church of america|luthersn",replacement="lutheran") %>%
+  gsub(pattern="evangelical christian|alliance\\/ evangelical|evagelical free|evangelical   conservative|evangelical covenant|evangelical free church|evangelical free church of america|evangelical protestant|grace|protestant, the church is a part of the evangelical covenant denomination|bible based",replacement="evangelical") %>%
+  gsub(pattern="i dont|n\\/a|^na$|when i used to go, i went to a christian church but i dont go any more", replacement="dont attend church") %>% 
+  gsub(pattern="protestant christian reformed church - crcna", replacement="christian reformed") %>% 
+  gsub(pattern="^christian$|^christian church$|^liturgical$|^protestant$|^protestant liturgical$", replacement="unspecified protestant") %>% 
+  gsub(pattern="brethren|christian \\/ assemblies of god|christian & missionary alliance|church of christ|church of the nazarene|varies", replacement="other")
+
+#categorizing them into even bigger categories
+df_clean$church_type_most <- df_clean$church_type_fix %>% 
+  gsub(pattern="episcopal|methodist|presbyterian|unspecified protestant|lutheran|christian reformed", replacement="mainline protestant") %>%
+  gsub(pattern="nondenominational|baptist", replacement="evangelical") %>%
+  gsub(pattern="unitarian universalist", replacement="other") 
+  
+
+# some coding/categoriztion of church types
+church_list_raw <- df_clean %>% group_by(church_type) %>% dplyr::summarize(n=n()) %>% ungroup() %>% arrange(-n)
+
+church_list <- df_clean %>% group_by(church_type_fix) %>% dplyr::summarize(n=n()) %>% ungroup() %>% arrange(-n)
+
+church_list_most <- df_clean %>% group_by(church_type_most) %>% dplyr::summarize(n=n()) %>% ungroup() %>% arrange(-n) #biggest categories
+
+#_____________
+# coding church type as numbers for pca and correlations later 
+## coding church_list_most into church_code
+df_clean$church_code <- ifelse(df_clean$church_type_most=="catholic", 0,
+                   ifelse(df_clean$church_type_most=="mainline protestant", 1,
+                   ifelse(df_clean$church_type_most=="evangelical", 2, 
+                   ifelse(df_clean$church_type_most=="other", 3,
+                          4))))
+df_clean$church_code <- df_clean$church_code/4 #standardizing!
+```
+
+
+## How do the items relate to one another?
+
+### Correlations
+```{r}
+# creating a df for the correlation
+df_cor <- df_clean %>% select(age_num, gender_num, churched_num, importance_rel_num, freq_prayer_num, importance_pray_num, aloud_silent_num, rote_num, instruction_num, ACTS_num, ACTS_use_num, group_alone_num, problem_articulation_num, journal_num, self_num, friend_num, change_num, switch_num, plan_num, optimism_num, delegate_num, conflict_num, connected_num, positive_num, charity_num, values_num, relief_num, motivated_num, heart_num, others_num, intervene_num, church_code)
+
+# renaming columns in df_cor
+df_cor <- df_cor %>% rename(age=age_num, gender=gender_num, churched=churched_num, importance=importance_rel_num, freq_prayer=freq_prayer_num, importance_pray=importance_pray_num, aloud_silent=aloud_silent_num, rote=rote_num, instruction=instruction_num, ACTS=ACTS_num, ACTS_use=ACTS_use_num, group_alone=group_alone_num, problem_articulation=problem_articulation_num, journal=journal_num, self=self_num, friend=friend_num, change=change_num, switch=switch_num, plan=plan_num, optimism=optimism_num, delegate=delegate_num, conflict=conflict_num, connected=connected_num, positive=positive_num, charity=charity_num, values=values_num, relief=relief_num, motivated=motivated_num, heart=heart_num, others=others_num, intervene=intervene_num)
+
+#removing any last pesky NAs (why are there still any??)
+df_cor <- df_cor %>% drop_na()
+
+#running the actual correlation
+cor <- cor(df_cor)
+
+#visualizing nicely :) 
+corrplot::corrplot(cor, order="hclust")
+``` 
+"Self" is the only thing that's really negatively correlated with everything. That makes sense! Also "Rote" is kind of anti-correlated with frequency of prayer, which also makes sense! Age is negatively correlated with "journal" and "Switch". oof and Gender is negatively correlated with instruction (men were more likely to get instruction). 
+
+Problem articulation is strongly correlated with "plan", "does it feel like you're talking things over with a friend", and "change"!!
+
+### A couple follow up plots 
+```{r}
+#problem articulation & friend 
+friend_problem <- ggplot(df_clean, aes(x=problem_articulation)) + 
+  geom_bar() +
+  facet_wrap(~ friend) + 
+  xlab("Rating Distribution of Problem Articulation by How much it feels like you're talking something over with someone") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  theme( axis.text.x = element_text( angle = 45,  hjust = 1 ) ) + 
+  ggtitle("Does prayer help you understand a problem you are facing? ") 
+show(friend_problem)
+```
+
+### PCA (using psych::principal to do varimax rotation)
+```{r}
+df_cor.principal_rotated <- psych::principal(df_cor, rotate = "varimax", scores=TRUE) # runs the pca
+
+summary(df_cor.principal_rotated) 
+plot(df_cor.principal_rotated) # idk what this does anymore lol 
+
+print(sort(df_cor.principal_rotated$loadings[,1]))
+
+```
+
+### PCA (using prcomp)
+```{r}
+df_cor1 <- df_cor %>% select(-church_code)
+
+df_cor.prcomp <- prcomp(df_cor, center=T, scale=T)
+summary(df_cor.prcomp) #shows how much variance is explained by each component
+plot(df_cor.prcomp) #shows elbow plot
+
+ggbiplot::ggbiplot(df_cor.prcomp, choices=c(1,2)) #only works with prcomp?
+
+#looking into the pca first couple components
+pca1 <- sort(df_cor.prcomp$rotation[,1])
+pca2 <- sort(df_cor.prcomp$rotation[,2])
+
+pca1
+pca2
+
+## Now reformatting for a table!
+# First component
+pca1 <- as_tibble(as.list(pca1))
+pca1 <- pivot_longer(pca1, cols = 1:32,names_to = "measures", values_to = "First Component Loadings") 
+pca1$`First Component Loadings` <- round(pca1$`First Component Loadings`, digits = 3)
+pca1$measures <- pca1$measures %>% gsub(pattern="_num",replacement="")
+
+#second component
+pca2 <- as_tibble(as.list(pca2))
+pca2 <- pivot_longer(pca2, cols = 1:32,names_to = "measures", values_to = "Second Component Loadings") 
+pca2$`Second Component Loadings` <- round(pca2$`Second Component Loadings`, digits = 3)
+pca2$measures <- pca2$measures %>% gsub(pattern="_num",replacement="")
+
+#these are from the internet saying how to do a varimax rotation, but I don't understand them lol 
+#rawLoadings     <- df_cor.prcomp$rotation[,1:ncomp] %*% diag(df_cor.prcomp$sdev, ncomp, ncomp)
+# rotatedLoadings <- varimax(rawLoadings)$loadings
+# invLoadings     <- t(pracma::pinv(rotatedLoadings))
+# scores          <- scale(irisX) %*% invLoadings
+# print(scores[1:5,])                   # Scores computed via rotated loadings
+# 
+# scores <- scale(df_cor.prcomp$x[,1:2]) %*% varimax(rawLoadings)$rotmat
+# print(scores[1:5,])                   # Scores computed via rotating the scores
+
+
+# cleaned up df for pca plotting 
+df_clean_pca <- df_clean %>% filter(!is.na(consent), !is.na(gender)) %>%
+  select(-c(RecipientLastName, RecipientFirstName, RecipientEmail, ExternalReference, gender_text, responsibility, regret, regret_explain, heart_text, others_text, intervene_text))
+
+
+#plotting 
+df_cor$PC1 <- df_cor.prcomp$x[,1] #this is the axis that is "how religious are people" 
+df_cor$PC2 <- df_cor.prcomp$x[,2] #this is the axis of how much do people problem solve"
+df_cor$PC3 <- df_cor.prcomp$x[,3]
+df_cor$PC4 <- df_cor.prcomp$x[,4]
+df_cor$PC5 <- df_cor.prcomp$x[,5]
+
+pca_plot <- ggplot(df_cor %>% mutate(church_code = as.factor(church_code)), aes(x=PC1, y=PC2, col=church_code)) + 
+  geom_point()  #colored by church code, 0 is catholic, 0.5 is evangelical
+
+pca_plot
+```
+The first component explains ~25% of the variance! The second component drops down to ~7%. There's an extremely strong elbow after the first component. 
+
+
+## Free Response Questions (minus church type coding, which is above correlations now)
+
+### Gender text
+```{r}
+df_clean$gender_text 
+
+#there is none lol 
+```
+
+### Description of prayer process
+```{r}
+# list of prayer process descriptions
+df_clean_process <- df_clean %>% filter(!is.na(process_description))
+df_clean_process$process_description
+
+# Some light NLP on the description of prayer process
+## creating text file 
+text <- df_clean_process$process_description
+
+## cleaning up text data to make nice bag of words
+clean_corpus <- function(corpus){
+  corpus <- stripWhitespace(corpus)
+  corpus <- removePunctuation(corpus)
+  corpus <- tolower(corpus)
+  corpus <- removeWords(corpus, stopwords("en"))
+  #corpus <- stemDocument(corpus)
+    return(corpus)
+}
+clean_text <- clean_corpus(text)
+
+##what are the most frequent words when it's all cleaned up?
+plot(freq_terms(clean_text))
+
+##like making one of those stupid word clouds
+wordcloud(clean_text)
+
+## some quick & dirty sentiment analysis
+d <- get_nrc_sentiment(clean_text)
+#transpose
+td<-data.frame(t(d))
+#The function rowSums computes column sums across rows for each level of a grouping variable.
+td_new <- data.frame(rowSums(td))
+#Transformation and cleaning
+names(td_new)[1] <- "count"
+td_new <- cbind("sentiment" = rownames(td_new), td_new)
+rownames(td_new) <- NULL
+td_new2<-td_new[1:8,]
+#Plot One - count of words associated with each sentiment
+quickplot(sentiment, data=td_new2, weight=count, geom="bar", fill=sentiment, ylab="count")+ggtitle("Prayer process description sentiments")
+
+```
+
+### Explaining regret
+```{r}
+df_clean$regret_explain
+```
+
+### Heart text
+```{r}
+df_clean_heart <- df_clean %>% filter(!is.na(heart_text))
+df_clean_heart$heart_text
+```
+
+### Others text
+```{r}
+df_clean_others <- df_clean %>% filter(!is.na(others_text))
+df_clean_others$others_text
+```
+
+### Intervene text 
+```{r}
+df_clean_intervene <- df_clean %>% filter(!is.na(intervene_text))
+df_clean_intervene$intervene_text
+```
+
+
+
+
+

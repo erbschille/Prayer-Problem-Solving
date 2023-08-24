@@ -1,0 +1,864 @@
+---
+title: "Prayer Experiment Analysis"
+author: "Eleanor Schille-Hudson"
+date: '2022-09-13'
+output:
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# Prelim (libraries, data, processing, re-coding)
+```{r setup, include=FALSE}
+#this includes code in the knitted doc 
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading Packages
+I'm trying out a new and more efficient way of loading in packages! 
+```{r include=FALSE, warnings=FALSE}
+# Package names
+packages <- c("ggplot2", "dplyr", "tidyr", "knitr", "corrplot", "tidyverse", "tidytext", "purrr", "gridExtra", "ggridges", "rjags", "BEST", "ggpubr", "GGally", "stringr", "brms")
+
+## NOTE
+# I also installed (with much trial and tribulation) rstan and brms for Bayesian regressions, but NOT putting that up here. All done in the console 
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
+```
+
+## Loading Data 
+```{r include=FALSE, warnings=FALSE}
+# Setting working directory
+#setwd("~/Library/CloudStorage/OneDrive-IndianaUniversity/Files/Research Projects/Prayer/Experiment/Data")
+
+#on new laptop!
+setwd("/Users/erbsh/Documents/Prayer/Experiment/Data")
+
+# Loading in all PRAYER condition data from Qualtrics
+p_raw <- read_csv("PrayerExp_Prayer_Clean.csv")
+
+# Loading in all TALK condition data from Qualtrics
+### note: i've renamed this conidition lablel "think" for clarity of communication/ideas
+t_raw <- read_csv("PrayerExp_Talk_Clean.csv")
+
+# Loading in table of label keys
+labels <- read_csv("question_label_coding.csv")
+```
+## Data Cleaning
+```{r include=FALSE}
+# combining p_raw and t_raw into df_raw
+df_raw <- bind_rows(p_raw, t_raw)
+
+# selecting the columns I want for df
+df <- df_raw %>% select(ResponseId, initials, age, gender, churched, church_type, 
+                        importance_rel, freq_prayer, importance_pray, previous,
+                        problem_articulation, closer, ideas, plan, motivation, optimism, 
+                        connected, positive, charity, relief, result, 
+                        condition, condition_num)
+
+# recoding variables as factors 
+df <- df %>% mutate(gender=factor(gender),
+                        churched=factor(churched, levels=c("Never", "On special occasions (like Christmas & Easter)", "A few times a year", "Once a month", "A few times a month", "Once a week", "More than once a week")),
+                        freq_prayer=factor(freq_prayer, levels=c("Never", "A few times a year", "Once a month", "A few times a month", "Once a week", "Multiple times a week", "Daily", "Multiple times a day")))
+```
+
+# Analysis
+
+## Descriptive Stats
+
+Here's a very nifty catchall purrr command I just learned!
+```{r}
+#summarizing overall
+df %>%
+  map(summary)
+
+#this summarizes all the columns split by condition
+df %>%                              
+  split(.$condition) %>%
+  map(summary)
+```
+## Church Type
+
+```{r}
+df$church_type
+
+df <- df %>% mutate(church_type_fix = tolower(df$church_type)) #making new column and lowercase
+df$church_type_fix <- gsub("[()]", "", df$church_type_fix) #removing parentheses
+df$church_type_fix <- gsub("[?]", "", df$church_type_fix) #removing question marks
+df$church_type_fix <- gsub("[.]", "", df$church_type_fix) #removing periods
+df$church_type_fix <- gsub("[/]", "", df$church_type_fix) #removing /
+
+
+df$church_type_fix <- df$church_type_fix %>% 
+  gsub(pattern="catholic most often|catholic parish", replacement="catholic") %>% 
+  gsub(pattern="anglican|anglican catholic|episcopal and african methodist episcopal|i go to the episcopal church but i'm an orthodox", replacement="episcopal") %>%
+  gsub(pattern="non-denominational|christian and missionary alliance", replacement="nondenominational") %>%
+  gsub(pattern="liturgical baptist|non denominational  baptist|evangelical church reformed baptist denomination|mennonite|brethren",replacement="baptist") %>%
+  gsub(pattern="evangelical prebyterian|christian presbyterian|presbyterian pcusa|presbyterian church|orthodox presbyterian church",replacement="presbyterian") %>%
+  gsub(pattern="united methodist|wesleyan|currently online, united methodist|on-line united methodistchurch|umc",replacement="methodist") %>%
+  gsub(pattern="elca|lutheran elca",replacement="lutheran") %>% 
+  gsub(pattern="disciples of christ--liberal protestant|liturgical protestant|christian|mainline liturgical", replacement="unspecified protestant")
+
+church_list_raw <- df %>% group_by(church_type_fix) %>% dplyr::summarize(n=n()) %>% ungroup() %>% arrange(-n)
+
+#also with avg ages
+church_list_raw_age <- df %>% group_by(church_type_fix) %>% dplyr::summarize(n=n(),age=mean(age)) %>% ungroup() %>% arrange(-n)
+
+# making even smaller categories
+df$church_type_gross <- df$church_type_fix %>%
+  gsub(pattern="nondenominational|baptist", replacement="evangelical") %>%
+  gsub(pattern="lutheran|unspecified protestant|presbyterian", replacement="mainline protestant")
+
+church_list_gross <- df %>% group_by(church_type_gross) %>% dplyr::summarize(n=n()) %>% ungroup() %>% arrange(-n)
+church_list_gross <- church_list_gross %>% filter(n>2)
+
+
+###JUST FOR FUTURE REFERENCE i'm making a special lil df minus the one person who says "the world is her church"
+df99 <- df %>% filter(str_detect(church_type_fix, 'sometimes i say the world is my church and that about sums it up') == FALSE)
+```
+
+## Frequency of Prayer
+```{r}
+# breakdown of info 
+summary(df$freq_prayer)
+freq_prayer_freq <- as.data.frame(table(df$freq_prayer))
+
+# bar plot 
+freq_prayer_plot <- ggplot(freq_prayer_freq, aes(x = Var1, y = Freq)) +  # Plot with values on top
+  theme_light() + 
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  geom_bar(stat = "identity", fill="dodgerblue1") +
+  geom_text(aes(label = Freq), vjust = 0) +
+  ggtitle("How often do you spontaneously pray by yourself?")
+show(freq_prayer_plot)
+```
+
+## Graphing Response Distributions 
+
+This is a graph of the distribution of participants' responses, question by question. Distributions for each condition are mapped on top of one another, represented by different colors. 
+
+```{r}
+# just starting with age 
+## histogram
+ggplot(df, aes(x=age, fill=condition)) + 
+  geom_histogram(position = "identity", alpha = 0.2, bins=50) + 
+  ggtitle("age")
+
+## density plot
+ggplot(df, aes(x=age, fill=condition)) + 
+  geom_density(alpha=0.6, kernel="rectangular") + 
+  ggtitle("age")
+
+ggplot(df, aes(x=age, fill=condition)) + 
+  geom_density(alpha=0.6, kernel="triangular") + 
+  ggtitle("age")
+
+ggplot(df, aes(x=age, fill=condition)) + 
+  geom_density(alpha=0.6, kernel="optcosine") + 
+  ggtitle("age")
+
+ggplot(df, aes(x=age, fill=condition)) + 
+  geom_density(alpha=0.6) + 
+  ggtitle("age")
+```
+
+### Histograms
+
+```{r}
+# list of measures
+measures <- c("importance_rel", "importance_pray", "previous", "problem_articulation", "closer", "ideas", "plan", "motivation", "optimism", "connected", "positive", "charity", "relief", "result") 
+
+# using lapply to plot histograms for each measure 
+hist_list <- lapply(measures, function(each_measure) {
+  ggplot(df, aes_string(each_measure, fill="condition")) + 
+    geom_histogram(position = "identity", alpha = 0.4, bins=50) +
+    ggtitle(str_c(each_measure, " split by condition"))  # Title of the plot
+})
+
+h1 <- marrangeGrob(hist_list, nrow=1, ncol=1)
+h1
+```
+
+### Faceted Histograms (fix on 1/27/23)
+```{r, fig.asp = 1}
+#connected
+conn_med <- df %>% 
+  group_by(condition) %>% 
+  mutate(medn = median(connected),
+         m = mean(connected))
+
+cmp <- conn_med %>% 
+  ggplot(aes(connected, fill=condition)) + 
+  theme_light() +
+  geom_histogram(position = "identity") +
+  facet_wrap(~condition, nrow=2) +
+  geom_vline(aes(xintercept= m, group=condition, color=condition), linetype="dashed") +
+  #annotate(label = paste("Median =", medn)) +
+  labs(title = "I feel more connected to the person after ___ about the \nsituation.", 
+       x = "Agreement Score from 0-100",
+       y = "Frequency") +
+  theme(plot.title = element_text(size = 15),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 15),
+        legend.position = "none", 
+        strip.text.x = element_text(size = 15))
+
+
+#problem_articulation
+prob_art_med <- df %>% 
+  group_by(condition) %>% 
+  mutate(medn = median(problem_articulation))
+
+pamp <- prob_art_med %>% 
+  ggplot(aes(problem_articulation, fill=condition)) + 
+  theme_light() +
+  geom_histogram(position = "identity") +
+  facet_wrap(~condition, nrow=2) +
+  geom_vline(aes(xintercept= medn, group=condition, color=condition), linetype="dashed") +
+  #annotate(label = paste("Median =", medn)) +
+  ggtitle("I understand the situation I am facing better as a result of praying about it.") 
+
+#relief
+rel_med <- df %>% 
+  group_by(condition) %>% 
+  mutate(medn = median(relief), 
+         m = mean(relief))
+
+rmp <- rel_med %>% 
+  ggplot(aes(relief, fill=condition)) + 
+  theme_light() +
+  geom_histogram(position = "identity") +
+  facet_wrap(~condition, nrow=2) +
+  geom_vline(aes(xintercept= m, group=condition, color=condition), linetype="dashed") +
+  #annotate(label = paste("Median =", medn)) +
+  labs(title = "I feel a sense of relief after ___ about the situation.", 
+       x = "Agreement Score from 0-100",
+       y = "Frequency") +
+  theme(plot.title = element_text(size = 15),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 15),
+        legend.position = "none", 
+        strip.text.x = element_text(size = 15))
+
+#result
+res_med <- df %>% 
+  group_by(condition) %>% 
+  mutate(medn = median(result), 
+         m = mean(result))
+
+resmp <- res_med %>% 
+  ggplot(aes(result, fill=condition)) + 
+  theme_light() +
+  geom_histogram(position = "identity") +
+  scale_y_continuous(n.breaks= 4) +
+  facet_wrap(~condition, nrow=2) +
+  geom_vline(aes(xintercept= m, group=condition, color=condition), linetype="dashed") +
+  #annotate(label = paste("Median =", medn)) +
+  labs(title = "I think something will change with this person as a result \nof ___ about the situation.", 
+       x = "Agreement Score from 0-100",
+       y = "Frequency") +
+  theme(plot.title = element_text(size = 15),
+        axis.text = element_text(size = 15),
+        axis.title = element_text(size = 15),
+        legend.position = "none", 
+        strip.text.x = element_text(size = 15))
+
+#positive
+pos_med <- df %>% 
+  group_by(condition) %>% 
+  mutate(medn = median(positive))
+
+pmp <- pos_med %>% 
+  ggplot(aes(positive, fill=condition)) + 
+  theme_light() +
+  geom_histogram(position = "identity") +
+  facet_wrap(~condition, nrow=2) +
+  geom_vline(aes(xintercept= medn, group=condition, color=condition), linetype="dashed") +
+  #annotate(label = paste("Median =", medn)) +
+  ggtitle("I feel more positively towards the person after praying about the situation.") 
+
+#previous
+prev_med <- df %>% 
+  group_by(condition) %>% 
+  mutate(medn = median(previous))
+
+prevmp <- prev_med %>% 
+  ggplot(aes(previous, fill=condition)) + 
+  theme_light() +
+  geom_histogram(position = "identity") +
+  facet_wrap(~condition, nrow=2) +
+  geom_vline(aes(xintercept= medn, group=condition, color=condition), linetype="dashed") +
+  #annotate(label = paste("Median =", medn)) +
+  ggtitle("I have prayed about this particular situation before.") 
+
+#plan
+plan_med <- df %>% 
+  group_by(condition) %>% 
+  mutate(medn = median(plan))
+
+planmp <- plan_med %>% 
+  ggplot(aes(plan, fill=condition)) + 
+  theme_light() +
+  geom_histogram(position = "identity") +
+  facet_wrap(~condition, nrow=2) +
+  geom_vline(aes(xintercept= medn, group=condition, color=condition), linetype="dashed") +
+  #annotate(label = paste("Median =", medn)) +
+  ggtitle("I have a clear sense of what action I should take in this conflict with this person going forward.")
+
+#new ideas
+ideas_med <- df %>% 
+  group_by(condition) %>% 
+  mutate(medn = median(ideas))
+
+ideasmp <- ideas_med %>% 
+  ggplot(aes(ideas, fill=condition)) + 
+  theme_light() +
+  geom_histogram(position = "identity") +
+  facet_wrap(~condition, nrow=2) +
+  geom_vline(aes(xintercept= medn, group=condition, color=condition), linetype="dashed") +
+  #annotate(label = paste("Median =", medn)) +
+  ggtitle("I have new ideas or a new plan for how to solve this conflict with this person going forward.")
+```
+
+### Grouped Scatterplots
+```{r}
+ggplot(df, aes(x=condition, y=connected, color=condition)) +
+  geom_point() +
+  geom_jitter() +
+  geom_violin(alpha=0) +
+  ggtitle("How connected do you feel to the person after praying/thinking about them?")
+
+
+# using lapply to plot grouped scatterplots for each measure 
+gs_list <- lapply(measures, function(each_measure) {
+  ggplot(df, aes_string(x="condition", y=each_measure, color="condition")) + 
+    geom_point() +
+    geom_jitter() +
+    geom_violin(alpha=0) +
+    ggtitle(str_c(each_measure, " split by condition"))  # Title of the plot
+})
+
+gs1 <- marrangeGrob(gs_list, nrow=1, ncol=1)
+gs1
+```
+### Cleaned Up Density Plots (fix on 1/27/23)
+```{r}
+#connected 
+ggplot(df, aes(x=condition, y=connected, color=condition)) +
+  theme_classic() +
+  geom_point(alpha=0.3) +
+  geom_violin(alpha=0) +
+  ggtitle("I feel more connected to the person after praying/thinking about the situation.")
+```
+
+### Density Plots 
+
+```{r}
+# using lapply to plot histograms for each measure 
+dens_list <- lapply(measures, function(each_measure) {
+  ggplot(df, aes_string(each_measure, fill="condition")) + 
+    geom_density(alpha=0.5) +
+    ggtitle(str_c(each_measure, " split by condition"))  # Title of the plot
+})
+
+d1 <- marrangeGrob(dens_list, nrow=1, ncol=1)
+d1
+```
+
+### Ridgeline Plots split by median age and condition 
+
+```{r}
+# adding a column that says if they are below or above median age 
+med_age = if_else(df$age >= median(df$age), "age 43+", "< age 43")
+df$med_age <- med_age
+
+#making med_age a factor
+df <- df %>% mutate(med_age=factor(med_age, levels=c("< age 43", "age 43+")))
+
+#making the ridgeline plots 
+ridge_list <- lapply(measures, function(each_measure) {
+  ggplot(df, aes_string(each_measure, y="med_age", fill="condition")) + 
+    geom_density_ridges(alpha=0.5) +
+    ggtitle(str_c(each_measure, " split by median age & condition"))  # Title of the plot
+})
+
+r1 <- marrangeGrob(ridge_list, nrow=1, ncol=1)
+r1
+```
+
+### Ridgeline Plots split by how often people go to church and condition 
+```{r}
+ridge_list_c <- lapply(measures, function(each_measure) {
+  ggplot(df, aes_string(each_measure, y="churched", fill="condition")) + 
+    geom_density_ridges(alpha=0.5) +
+    ggtitle(str_c(each_measure, " split by churched & condition"))  # Title of the plot
+})
+
+r2 <- marrangeGrob(ridge_list_c, nrow=1, ncol=1)
+r2
+```
+
+### Ridgeline Plots split by how often people pray and condition 
+```{r}
+ridge_list_p <- lapply(measures, function(each_measure) {
+  ggplot(df, aes_string(each_measure, y="freq_prayer", fill="condition")) + 
+    geom_density_ridges(alpha=0.5) +
+    ggtitle(str_c(each_measure, " split by freq_prayer & condition"))  # Title of the plot
+})
+
+r3 <- marrangeGrob(ridge_list_p, nrow=1, ncol=1)
+r3
+```
+
+### Corrplot of all numerical measures split by condition 
+```{r}
+# creating a df for the correlation 
+#you could also think about this as a df of just the (numerical) measures of interest
+df_cor <- df %>% select(-ResponseId, -initials, -gender, -churched, -church_type, -freq_prayer, -condition, -med_age, -church_type_fix, -church_type_gross)
+
+#________-------________--------_________------____
+
+##PRAYER
+
+# filtering for PRAYER condition
+df_cor_p <- df_cor %>% filter(condition_num==0)
+df_cor_p <- df_cor_p %>% select(-condition_num)
+
+#running the actual correlation
+cor_p <- cor(df_cor_p)
+
+#visualizing nicely :) 
+corrplot::corrplot(cor_p, title="Prayer Condition",mar=c(0,0,1,0))
+
+#________-------________-------________------____
+
+##TALK
+
+# fitering for TALK condition
+df_cor_t <- df_cor %>% filter(condition_num==1)
+df_cor_t <- df_cor_t %>% select(-condition_num)
+
+#running the actual correlation
+cor_t <- cor(df_cor_t)
+
+#visualizing nicely :) 
+corrplot::corrplot(cor_t, title="Talk Condition", mar=c(0,0,1,0))
+
+```
+### Scatterplot of measures vs. previous
+I'm curious if there were "bleed through" effects in the talk condition depending on how much people had prayed about the situation in the past. 
+```{r}
+scatter_list <- lapply(measures, function(each_measure) {
+  ggplot(df_cor_t, aes_string(x="previous", y=each_measure)) + 
+    geom_point(color="cornflowerblue") +
+    geom_smooth(method="lm", color="darkgrey", se=FALSE) +
+    stat_regline_equation(label.y = 83, aes(label = ..eq.label..)) +
+    stat_regline_equation(label.y = 75, aes(label = ..rr.label..)) +
+    ggtitle(str_c(each_measure, " plotted against previous"))  # Title of the plot
+})
+
+s1 <- marrangeGrob(scatter_list, nrow=1, ncol=1)
+s1
+```
+
+### Scatterplot of measures vs age
+```{r}
+# TALK CONDITION
+scatter_list_age_talk <- lapply(measures, function(each_measure) {
+  ggplot(df_cor_t, aes_string(x="age", y=each_measure)) + 
+    geom_point(color="cornflowerblue") +
+    geom_smooth(method="lm", color="darkgrey", se=FALSE) +
+    stat_regline_equation(label.y = 83, aes(label = ..eq.label..)) +
+    stat_regline_equation(label.y = 75, aes(label = ..rr.label..)) +
+    ggtitle(str_c("Talk condition: age vs. " ,each_measure))  # Title of the plot
+})
+
+s2_talk <- marrangeGrob(scatter_list_age_talk, nrow=1, ncol=1)
+s2_talk
+
+# PRAYER CONDITION
+scatter_list_age_pray <- lapply(measures, function(each_measure) {
+  ggplot(df_cor_p, aes_string(x="age", y=each_measure)) + 
+    geom_point(color="salmon") +
+    geom_smooth(method="lm", color="darkgrey", se=FALSE) +
+    stat_regline_equation(label.y = 83, aes(label = ..eq.label..)) +
+    stat_regline_equation(label.y = 75, aes(label = ..rr.label..)) +
+    ggtitle(str_c("Prayer condition: age vs. " ,each_measure))  # Title of the plot
+})
+
+s2_pray <- marrangeGrob(scatter_list_age_pray, nrow=1, ncol=1)
+s2_pray
+```
+
+
+## Bayesian T-Tests
+For these, I am using John Kruschke's BEST (Bayesian Estimation Supersedes the t-Test) (Meredith & Kruschke, 2021). I am using the BEST package, which uses JAGS. I am not informing my priors at all. In each case, mu1 is the prayer group and mu2 is the talk group. I have a separate estimation of the difference of means for each of my measures. 
+
+### MCMC
+```{r}
+# "My faith/religion/spirituality is important to me."                                                
+BEST_importance_rel <- BESTmcmc(df_cor_p$importance_rel, df_cor_t$importance_rel, parallel = FALSE)     
+# "Prayer is an important part of my faith life."    
+BEST_importance_pray <- BESTmcmc(df_cor_p$importance_pray, df_cor_t$importance_pray, parallel = FALSE)  
+# "I have prayed about this particular situation before."     
+BEST_previous <- BESTmcmc(df_cor_p$previous, df_cor_t$previous, parallel = FALSE)  
+
+# "I understand the situation I am facing better as a result of praying about it."  
+BEST_problem_articulation <- BESTmcmc(df_cor_p$problem_articulation, df_cor_t$problem_articulation, parallel = FALSE)  
+
+# "I am closer to solving the conflict with this person."                                             
+BEST_closer <- BESTmcmc(df_cor_p$closer, df_cor_t$closer, parallel = FALSE)  
+
+# "I have new ideas or a new plan for how to solve this conflict with this person going forward."     
+BEST_ideas <- BESTmcmc(df_cor_p$ideas, df_cor_t$ideas, parallel = FALSE)  
+
+# "I have a clear sense of what action I should take in this conflict with this person going forward."
+BEST_plan <- BESTmcmc(df_cor_p$plan, df_cor_t$plan, parallel = FALSE)  
+
+# "I am motivated to resolve conflict with this person after praying about the situation."            
+BEST_motivation <- BESTmcmc(df_cor_p$motivation, df_cor_t$motivation, parallel = FALSE)  
+
+# "I am optimistic that there is a resolution to this conflict after praying about the situation."    
+BEST_optimism <- BESTmcmc(df_cor_p$optimism, df_cor_t$optimism, parallel = FALSE)  
+
+# "I feel more connected to the person after praying about the situation."                            
+BEST_connected <- BESTmcmc(df_cor_p$connected, df_cor_t$connected, parallel = FALSE)  
+
+# "I feel more positively towards the person after praying about the situation."                      
+BEST_positive <- BESTmcmc(df_cor_p$positive, df_cor_t$positive, parallel = FALSE)  
+
+# "I feel more charitable towards the person after praying about the situation."                      
+BEST_charity <- BESTmcmc(df_cor_p$charity, df_cor_t$charity, parallel = FALSE)  
+
+# "I feel a sense of relief after praying about the situation."                                       
+BEST_relief <- BESTmcmc(df_cor_p$relief, df_cor_t$relief, parallel = FALSE)  
+
+# "I think something will change with this person as a result of praying about the situation."        
+BEST_result <- BESTmcmc(df_cor_p$result, df_cor_t$result, parallel = FALSE)  
+```
+
+### Plots & Summaries 
+I don't want to run those analyses more than I have to, so I'm plotting separately
+```{r}
+#1 "My faith/religion/spirituality is important to me."   
+plot(BEST_importance_rel)     
+summary(BEST_importance_rel)
+
+#2 "Prayer is an important part of my faith life."    
+plot(BEST_importance_pray)  
+summary(BEST_importance_pray)
+
+#3 "I have prayed about this particular situation before."     
+plot(BEST_previous)  
+summary(BEST_previous)
+
+#4 "I understand the situation I am facing better as a result of praying about it."  
+plot(BEST_problem_articulation)  
+summary(BEST_problem_articulation)
+
+#5 "I am closer to solving the conflict with this person."                                             
+plot(BEST_closer)  
+summary(BEST_closer)
+
+#6 "I have new ideas or a new plan for how to solve this conflict with this person going forward."     
+plot(BEST_ideas)  
+summary(BEST_ideas)
+
+#7 "I have a clear sense of what action I should take in this conflict with this person going forward."
+plot(BEST_plan)  
+summary(BEST_plan)
+
+#8 "I am motivated to resolve conflict with this person after praying about the situation."            
+plot(BEST_motivation)  
+summary(BEST_motivation)
+
+#9 "I am optimistic that there is a resolution to this conflict after praying about the situation."    
+plot(BEST_optimism)  
+summary(BEST_optimism)
+
+#10 "I feel more connected to the person after praying about the situation."                          
+plot(BEST_connected) 
+summary(BEST_connected)
+
+#11 "I feel more positively towards the person after praying about the situation."                    
+plot(BEST_positive) 
+summary(BEST_positive)
+
+#12 "I feel more charitable towards the person after praying about the situation."                    
+plot(BEST_charity) 
+summary(BEST_charity)
+
+#13 "I feel a sense of relief after praying about the situation."                                     
+plot(BEST_relief)  
+summary(BEST_relief)
+
+#14 "I think something will change with this person as a result of praying about the situation."      
+plot(BEST_result)
+summary(BEST_result)
+```
+
+## Regular Regressions lol 
+```{r}
+df <- df %>% mutate(condition = factor(condition))
+contrasts(df$condition) <- cbind("pray" = c(1, -1))
+m.connect <- glm(formula = connected ~ scale(age)*condition,
+                 data = df,
+                 family = gaussian
+                 )
+
+m.result <- glm(formula = result ~ scale(age)*condition,
+                 data = df,
+                 family = gaussian
+                 )
+
+m.relief <- glm(formula = relief ~ scale(age)*condition,
+                 data = df,
+                 family = gaussian
+                 )
+```
+
+## Bayesian Regressions 
+
+### MCMC
+Only run this one time. It's slow. 
+```{r}
+#problem_articulation 
+model_problem_articulation <- brm(formula = problem_articulation ~ scale(age)*condition,
+                       data = df)
+#closer               
+model_closer <- brm(formula = closer ~ scale(age)*condition,
+                       data = df)
+#ideas                
+model_ideas <- brm(formula = ideas ~ scale(age)*condition,
+                       data = df)
+#plan                 
+model_plan <- brm(formula = plan ~ scale(age)*condition,
+                       data = df)
+#motivation 
+model_motivation <- brm(formula = motivation ~ scale(age)*condition,
+                       data = df)
+#optimism  
+model_optimism <- brm(formula = optimism ~ scale(age)*condition,
+                       data = df)
+#connected 
+df <- df %>% mutate(condition = factor(condition))
+contrasts(df$condition) <- cbind("pray" = c(1, -1))
+model_connected <- brm(formula = connected ~ scale(age)*condition,
+                       data = df)
+            
+#positive 
+model_positive <- brm(formula = positive ~ scale(age)*condition,
+                       data = df)
+#charity  
+model_charity <- brm(formula = charity ~ scale(age)*condition,
+                       data = df)
+#relief   
+model_relief <- brm(formula = relief ~ scale(age)*condition,
+                       data = df)
+#result  
+model_result <- brm(formula = result ~ scale(age)*condition,
+                       data = df)
+```
+
+### Summaries 
+```{r}
+#problem_articulation 
+summary(model_problem_articulation) 
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_pa <- posterior_samples(model_problem_articulation)
+ps_pa_mean <- mean(ps_pa$b_scaleage > (-1*(ps_pa$b_scaleage - ps_pa$`b_scaleage:conditionthink`))) 
+ps_pa_mean
+
+#closer               
+summary(model_closer)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_c <- posterior_samples(model_closer)
+ps_c_mean <- mean(ps_c$b_scaleage > (-1*(ps_c$b_scaleage - ps_c$`b_scaleage:conditionthink`))) 
+ps_c_mean
+
+#ideas                
+summary(model_ideas)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_i <- posterior_samples(model_ideas)
+ps_i_mean <- mean(ps_i$b_scaleage > (-1*(ps_i$b_scaleage - ps_i$`b_scaleage:conditionthink`))) 
+ps_i_mean
+
+#plan                 
+summary(model_plan)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_p <- posterior_samples(model_plan)
+ps_p_mean <- mean(ps_p$b_scaleage > (-1*(ps_p$b_scaleage - ps_p$`b_scaleage:conditionthink`))) 
+ps_p_mean
+
+#motivation 
+summary(model_motivation)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_m <- posterior_samples(model_motivation)
+ps_m_mean <- mean(ps_m$b_scaleage > (-1*(ps_m$b_scaleage - ps_m$`b_scaleage:conditionthink`))) 
+ps_m_mean
+
+#optimism  
+summary(model_optimism)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_o <- posterior_samples(model_optimism)
+ps_o_mean <- mean(ps_o$b_scaleage > (-1*(ps_o$b_scaleage - ps_o$`b_scaleage:conditionthink`))) 
+ps_o_mean
+
+#connected 
+summary(model_connected)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_con <- posterior_samples(model_connected)
+ps_con_mean <- mean(ps_con$b_scaleage > (-1*(ps_con$b_scaleage - ps_con$`b_scaleage:conditionthink`))) 
+ps_con_mean
+            
+#positive 
+summary(model_positive)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_pos <- posterior_samples(model_positive)
+ps_pos_mean <- mean(ps_pos$b_scaleage > (-1*(ps_pos$b_scaleage - ps_pos$`b_scaleage:conditionthink`))) 
+ps_pos_mean
+
+#charity  
+summary(model_charity)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_ch <- posterior_samples(model_charity)
+ps_ch_mean <- mean(ps_ch$b_scaleage > (-1*(ps_ch$b_scaleage - ps_ch$`b_scaleage:conditionthink`))) 
+ps_ch_mean
+
+#relief   
+summary(model_relief)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_r <- posterior_samples(model_relief)
+ps_r_mean <- mean(ps_r$b_scaleage > (-1*(ps_r$b_scaleage - ps_r$`b_scaleage:conditionthink`))) 
+ps_r_mean
+
+#result  
+summary(model_result)
+#checking how many times in MCMC chain age slope was bigger than age - talk age interaction (is prayer a meaningful training effect)
+ps_res <- posterior_samples(model_result)
+ps_res_mean <- mean(ps_res$b_scaleage > (-1*(ps_res$b_scaleage - ps_res$`b_scaleage:conditionthink`))) 
+ps_res_mean
+```
+
+### Nice Scatterplots of Age vs. Measures with Bayesian model fits 
+```{r}
+#problem_articulation 
+problem_articulation_age <- ggplot(df, aes(x=scale(age), y=problem_articulation, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_pa$b_Intercept), slope=mean(ps_pa$b_scaleage), color="#F8766D", size=1)+ 
+  geom_abline(intercept=(mean(ps_pa$b_Intercept) + mean(ps_pa$b_conditionthink)), slope=(mean(ps_pa$b_scaleage) + mean(ps_pa$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed") +
+  ggtitle("Problem Articulation vs. Participant Age with Bayesian Regression Model Fits")
+
+problem_articulation_age
+
+#closer  
+closer_age <- ggplot(df, aes(x=scale(age), y=closer, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_c$b_Intercept), slope=mean(ps_c$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_c$b_Intercept) + mean(ps_c$b_conditionthink)), slope=(mean(ps_c$b_scaleage) + mean(ps_c$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Closer vs. Participant Age with Bayesian Regression Model Fits")
+
+closer_age
+
+#ideas
+ideas_age <- ggplot(df, aes(x=scale(age), y=ideas, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_i$b_Intercept), slope=mean(ps_i$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_i$b_Intercept) + mean(ps_i$b_conditionthink)), slope=(mean(ps_i$b_scaleage) + mean(ps_i$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Ideas vs. Participant Age with Bayesian Regression Model Fits")
+
+ideas_age
+
+#plan  
+plan_age <- ggplot(df, aes(x=scale(age), y=plan, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_p$b_Intercept), slope=mean(ps_p$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_p$b_Intercept) + mean(ps_p$b_conditionthink)), slope=(mean(ps_p$b_scaleage) + mean(ps_p$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Plan vs. Participant Age with Bayesian Regression Model Fits")
+
+plan_age 
+
+#motivation  
+motivation_age <- ggplot(df, aes(x=scale(age), y=motivation, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_m$b_Intercept), slope=mean(ps_m$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_m$b_Intercept) + mean(ps_m$b_conditionthink)), slope=(mean(ps_m$b_scaleage) + mean(ps_m$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Motivation vs. Participant Age with Bayesian Regression Model Fits")
+
+motivation_age
+
+#optimism
+optimism_age <- ggplot(df, aes(x=scale(age), y=optimism, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_o$b_Intercept), slope=mean(ps_o$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_o$b_Intercept) + mean(ps_o$b_conditionthink)), slope=(mean(ps_o$b_scaleage) + mean(ps_o$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Optimism vs. Participant Age with Bayesian Regression Model Fits")
+
+optimism_age
+
+#connected 
+connected_age <- ggplot(df, aes(x=scale(age), y=connected, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_con$b_Intercept), slope=mean(ps_con$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_con$b_Intercept) + mean(ps_con$b_conditionthink)), slope=(mean(ps_con$b_scaleage) + mean(ps_con$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed") +
+  ggtitle("Connection vs. Participant Age with Bayesian Regression Model Fits")
+
+connected_age
+
+#positive  
+positive_age <- ggplot(df, aes(x=scale(age), y=positive, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_pos$b_Intercept), slope=mean(ps_pos$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_pos$b_Intercept) + mean(ps_pos$b_conditionthink)), slope=(mean(ps_pos$b_scaleage) + mean(ps_pos$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Positive vs. Participant Age with Bayesian Regression Model Fits")
+
+positive_age
+
+#charity 
+charity_age <- ggplot(df, aes(x=scale(age), y=charity, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_ch$b_Intercept), slope=mean(ps_ch$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_ch$b_Intercept) + mean(ps_ch$b_conditionthink)), slope=(mean(ps_ch$b_scaleage) + mean(ps_ch$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Charity vs. Participant Age with Bayesian Regression Model Fits")
+
+charity_age
+
+#relief  
+relief_age <- ggplot(df, aes(x=scale(age), y=relief, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_r$b_Intercept), slope=mean(ps_r$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_r$b_Intercept) + mean(ps_r$b_conditionthink)), slope=(mean(ps_r$b_scaleage) + mean(ps_r$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Relief vs. Participant Age with Bayesian Regression Model Fits")
+
+relief_age
+
+#result
+result_age <- ggplot(df, aes(x=scale(age), y=result, color=condition)) +
+    geom_point() +
+    geom_abline(intercept=mean(ps_res$b_Intercept), slope=mean(ps_res$b_scaleage), color="#F8766D", size=1) +
+  geom_abline(intercept=(mean(ps_res$b_Intercept) + mean(ps_res$b_conditionthink)), slope=(mean(ps_res$b_scaleage) + mean(ps_res$`b_scaleage:conditionthink`)), color="#00BFC4", size=1) +
+  geom_vline(xintercept = 0, color="grey", linetype="dashed")+
+  ggtitle("Result vs. Participant Age with Bayesian Regression Model Fits")
+
+result_age  
+  
+```
