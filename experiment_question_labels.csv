@@ -1,0 +1,23 @@
+Label,Key,Data_Type,Scale ,Coding
+ResponseId         ,a random string that Qualtrics assigned every participant,str,,
+age,participant age,num,,
+gender,participant gender identity,factor,,
+churched,How often do you go to church? ,factor,Never to More than once a week,
+church_type,What kind of church do you go to? ,str,,
+importance_rel,My faith/religion/spirituality is important to me.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+freq_prayer,How often do you spontaneously pray by yourself?,factor,,
+importance_pray,Prayer is an important part of my faith life.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+previous,I have prayed about this particular situation before.,num,Not at all to A great deal,Scale of 0-100
+problem_articulation,I understand the situation I am facing better as a result of praying about it.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+closer,I am closer to solving the conflict with this person.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+ideas,I have new ideas or a new plan for how to solve this conflict with this person going forward.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+plan,I have a clear sense of what action I should take in this conflict with this person going forward.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+motivation,I am motivated to resolve conflict with this person after praying about the situation.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+optimism ,I am optimistic that there is a resolution to this conflict after praying about the situation.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+connected ,I feel more connected to the person after praying about the situation.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+positive ,I feel more positively towards the person after praying about the situation.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+charity ,I feel more charitable towards the person after praying about the situation.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+relief ,I feel a sense of relief after praying about the situation.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+result ,I think something will change with this person as a result of praying about the situation.,num,Strongly Disagree to Strongly Agree,Scale of 0-100
+condition,prayer or talk ,str,,
+condition_num,0 (prayer) or 1 (talk),num,,

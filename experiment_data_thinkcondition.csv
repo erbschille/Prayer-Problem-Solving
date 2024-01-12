@@ -1,0 +1,51 @@
+ResponseId,age,gender,gender_TEXT,churched,church_type,importance_rel,freq_prayer,importance_pray,previous,problem_articulation,closer,ideas,plan,motivation,optimism,connected,positive,charity,relief,result,condition,condition_num
+R_TjfUsfIXwzYqjh7,25,man,,A few times a month,nondenominational ,100,Once a week,67,57,41,46,68,29,82,79,58,70,44,57,73,think,1
+R_2z61K6xrZNI8w4U,52,man,,A few times a year,Anglican,100,Multiple times a week,100,47,100,48,49,50,50,18,47,46,47,26,13,think,1
+R_1mt4NVev83yUcR0,23,woman,,Once a week,Liturgical Baptist,91,Multiple times a week,91,77,83,42,47,29,66,33,38,46,29,15,18,think,1
+R_po54p3B2KMTakmZ,24,man,,A few times a month,Anglican Catholic,100,Daily,85,0,58,20,29,71,18,28,0,5,1,48,27,think,1
+R_zT1WjyH96M1k9Vv,23,woman,,Once a week,nondenominational ,84,Multiple times a week,67,95,74,23,36,50,34,49,11,19,23,86,11,think,1
+R_24hLgIkJO1TkJU5,19,woman,,More than once a week,nondenominational ,100,Multiple times a day,100,100,57,57,55,23,58,53,13,36,58,42,48,think,1
+R_3qHCPCWWmZzIGaJ,26,woman,,Once a week,nondenominational ,100,Multiple times a day,96,99,88,76,68,91,76,75,91,65,81,52,40,think,1
+R_3njBhoo23d7Vlf2,35,woman,,A few times a year,sometimes i say the world is my church and that about sums it up,100,Multiple times a day,100,100,43,54,100,100,60,100,68,100,100,100,100,think,1
+R_1hBfcDR6LaaV47x,30,man,,Once a month,Episcopal,100,Multiple times a week,70,52,99,82,93,69,53,95,67,100,100,100,74,think,1
+R_1qWDJYUInNf42ZD,25,woman,,Once a week,Episcopal,76,Once a week,49,64,67,67,57,49,29,36,17,17,17,17,16,think,1
+R_10UkZjLN8vecknN,51,woman,,More than once a week,Presbyterian,98,Multiple times a day,98,53,20,26,20,80,38,36,25,14,30,9,21,think,1
+R_12uwauxo7nUdw3i,60,woman,,More than once a week,Episcopal ,0,Multiple times a day,0,94,50,51,72,99,50,50,2,52,84,66,49,think,1
+R_2WTE3IRQt0WL389,28,man,,Once a week,Episcopal,99,Daily,70,59,95,63,60,64,57,61,77,77,66,58,63,think,1
+R_2YFiWAjMEASa50b,24,woman,,Once a month,nondenominational ,59,Multiple times a week,55,30,63,35,37,58,42,61,68,73,65,78,32,think,1
+R_2Qgl8w3qd5pQFLh,42,woman,,Once a week,Episcopal,100,Multiple times a week,85,38,79,51,38,41,32,57,58,67,46,83,67,think,1
+R_30eqHoBmewd2LfW,68,man,,A few times a month,Episcopal,93,Multiple times a day,64,65,73,65,69,89,79,69,43,43,44,75,77,think,1
+R_33prV3BvgjLAzxR,27,man,,Once a week,nondenominational ,100,Daily,96,15,71,50,73,63,39,63,64,66,80,49,48,think,1
+R_2bW7axxMiMNsyIh,47,man,,Once a week,Catholic,96,Multiple times a day,21,7,37,0,6,6,12,1,0,0,23,0,0,think,1
+R_AAM9Cer2af1F6Nz,31,woman,,Once a week,nondenominational ,100,Multiple times a day,89,69,81,14,71,73,83,84,83,86,88,86,85,think,1
+R_2ZZJgVLaWQ0GzJh,44,woman,,More than once a week,Presbyterian,92,Daily,72,43,67,19,19,16,14,13,57,7,60,5,59,think,1
+R_3rULAwFWq1XJBo6,20,woman,,Once a week,Episcopal,100,Daily,96,98,82,25,6,0,59,83,39,91,91,53,30,think,1
+R_3sJ9jHo6tHdpnlD,22,non-binary,,Once a week,Episcopal,100,Multiple times a day,93,97,100,70,24,75,92,97,71,48,90,20,29,think,1
+R_2z76VeggZ8OSebK,26,woman,,Once a week,Non denominational / Baptist?,100,Daily,63,77,22,25,0,50,46,61,12,13,17,73,21,think,1
+R_28CXc6YzqkfiiY7,74,man,,More than once a week,Episcopal,100,Daily,100,87,100,14,19,95,23,23,17,0,47,5,5,think,1
+R_DM2dsEAC30wo9yx,28,woman,,Once a month,nondenominational ,100,Daily,59,49,11,10,10,11,10,1,1,1,1,1,1,think,1
+R_2amLuouCYR5zJDP,23,woman,,Once a week,nondenominational ,100,Multiple times a day,100,41,24,12,12,33,20,19,60,51,62,9,9,think,1
+R_2YsUMSvHDc7RI7M,48,woman,,Once a week,nondenominational ,100,Multiple times a day,100,83,51,17,13,16,7,4,0,6,5,4,5,think,1
+R_3Hjhkp4pmZeGbvW,64,woman,,Once a week,Episcopal,100,Multiple times a day,91,65,100,47,49,94,44,52,0,45,49,57,0,think,1
+R_9TvUGNkeNCPXzxv,43,woman,,More than once a week,Episcopal,91,A few times a month,73,0,78,51,78,79,70,57,12,11,62,51,64,think,1
+R_soLDKXds4IYhQJj,73,woman,,More than once a week,Anglican,100,Multiple times a day,100,100,1,2,4,99,16,4,1,4,5,3,1,think,1
+R_TotsGG6jZiBkel3,36,woman,,More than once a week,Disciples of Christ--liberal protestant,100,Multiple times a day,100,81,100,0,0,0,0,39,0,0,0,0,0,think,1
+R_elLH6ffNgWbiPCx,43,man,,More than once a week,Episcopal and African Methodist Episcopal ,100,Multiple times a week,70,2,3,4,4,6,26,33,0,35,36,5,4,think,1
+R_33viBsRJs7mUh4P,24,man,,A few times a month,Episcopal,62,Once a month,9,35,57,59,35,25,55,43,21,39,54,52,66,think,1
+R_3R899QViQgnBoPx,32,woman,,On special occasions (like Christmas & Easter),Catholic (most often),30,Multiple times a week,53,55,8,1,1,1,3,4,25,25,25,11,1,think,1
+R_22MpOD5FMtu8oqo,76,woman,,More than once a week,Episcopal,100,Daily,100,56,100,80,99,100,100,100,100,97,100,100,0,think,1
+R_262WaqDhm3CUbRX,77,woman,,More than once a week,Lutheran,95,Daily,48,100,53,98,39,42,33,26,70,60,67,20,15,think,1
+R_1F3y7xZCVwRQBCo,65,man,,More than once a week,Episcopal,0,Multiple times a day,100,84,41,45,14,80,31,100,18,1,23,80,1,think,1
+R_1hNlI2Tw2zMg0UR,95,woman,,Once a week,Lutheran,100,Multiple times a day,100,46,45,46,32,66,45,0,0,1,29,100,0,think,1
+R_3M6vukRaGdJM4r6,75,woman,,More than once a week,Episcopal,100,Daily,91,66,73,11,51,76,58,12,66,71,48,69,11,think,1
+R_279cCDE3V5GrC7y,48,man,,More than once a week,Lutheran (ELCA),100,Multiple times a week,81,32,59,8,7,55,50,52,6,4,6,5,2,think,1
+R_u8L98QTGwT43pbH,30,woman,,Once a month,catholic,81,Multiple times a week,80,58,78,86,70,93,90,54,86,57,92,58,75,think,1
+R_2YQdL0Bh3gg0IXH,74,woman,,A few times a year,Episcopal,98,Multiple times a day,89,65,43,45,69,45,45,35,34,47,55,50,30,think,1
+R_3EnchLOA4JCnfYx,23,woman,,Once a week,Baptist,100,Multiple times a day,100,100,87,27,19,75,61,69,19,51,42,93,56,think,1
+R_2tEI8hM9UO8uByA,73,woman,,More than once a week,Episcopal,100,Multiple times a day,100,100,100,100,99,100,100,100,2,100,100,100,47,think,1
+R_3gLC1ggwnF46Pvg,70,man,,Once a week,christian,100,Daily,100,100,100,47,47,100,48,0,0,0,0,47,0,think,1
+R_1N9wkgkn4671oZP,53,man,,More than once a week,Episcopal,100,Multiple times a day,100,73,6,3,3,4,1,3,3,5,4,2,2,think,1
+R_29mP7Crbmarp8LK,30,woman,,Once a week,nondenominational ,100,Multiple times a day,100,100,57,83,74,68,72,100,77,75,100,87,100,think,1
+R_3fBspBio23rJqnE,30,woman,,Once a week,Evangelical church. Reformed baptist denomination.,100,Multiple times a day,100,100,77,30,28,28,59,40,82,83,85,40,59,think,1
+R_1lgg6wmPhd0FY1o,28,man,,Once a week,Episcopal,100,Once a month,12,2,71,49,61,89,83,60,92,92,91,52,54,think,1
+R_3hinj6R3Or7ZYK4,74,woman,,Once a week,Episcopal,98,Multiple times a day,96,52,98,50,52,50,51,55,78,81,82,50,51,think,1

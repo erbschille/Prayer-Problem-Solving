@@ -1,0 +1,35 @@
+Label,Key,Data_Type,Scale ,Coding Scheme
+ResponseId         ,a random string that Qualtrics assigned every participant,str,,
+age,participant age,num,,scaled from 0-1 by dividing by 100
+gender,participant gender identity,factor,,
+churched,How often do you go to church? ,factor,Never to More than once a week,"coded 0-6, scaled from 0-1"
+church_type,What kind of church do you go to? ,str,,
+importance_rel,My faith/religion/spirituality is important to me.,num,Strongly Disagree to Strongly Agree,"coded 0-4, scaled from 0-1"
+freq_prayer,How often do you spontaneously pray by yourself?,num,Never to Multiple times a day,"coded 0-2, scaled from 0-1"
+importance_pray,Prayer is an important part of my faith life.,num,Strongly Disagree to Strongly Agree,"coded 0-7, scaled from 0-1"
+aloud_silent,How often do you pray aloud (as opposed to silently)?,num,Never to Always,"coded 0-4, scaled from 0-1"
+rote,How often are your prayers read or recited from memory?,num,Never to Always,"coded 0-4, scaled from 0-1"
+process_description,What does it look like for you when you pray? Do you have a specific routine? Specific times of day when you pray? Please briefly describe below:,str,,
+instruction,Have you received instruction about how to pray?Ê,num,A great deal to None at All,"reverse coded 0-4, scaled from 0-1"
+ACTS,"Have you heard of the A.C.T.S. model of prayer? (Adoration, Confession, Thanksgiving, Supplication)",num,"Yes, I'm not sure, No","coded 0-2, scaled from 0-1"
+ACTS_use,Do you use the A.C.T.S. model when you pray?Ê,num,Never to Always,"coded 0-4, scaled from 0-1"
+group_alone,How often do you pray alone vs. in a group?,num,Never pray in a group to Always pray in a group,"coded 0-4, scaled from 0-1"
+problem_articulation,Does prayer help you understand a problem you are facing?,num,Never to Always,"coded 0-4, scaled from 0-1"
+journal,Does prayer feel like journaling or writing something in your diary?,num,Never to Always,"coded 0-4, scaled from 0-1"
+self,Does prayer feel like talking to yourself?,num,Never to Always,"coded 0-4, scaled from 0-1"
+friend,Does prayer feel like talking something over with someone else?Ê,num,Never to Always,"coded 0-4, scaled from 0-1"
+change,How often does praying about a problem change the way you see it?,num,Never to Always,"coded 0-4, scaled from 0-1"
+switch,"How often have you started to pray about one thing, but find yourself praying about something else?Ê",num,Never to Always,"coded 0-4, scaled from 0-1"
+plan,How often do you feel like praying gives you a clear sense of what action you should take after you pray?Ê,num,Never to Always,"coded 0-4, scaled from 0-1"
+optimism ,How often does prayer make you feel optimistic that there is a constructive solution to the problem you are praying about?,num,Never to Always,"coded 0-4, scaled from 0-1"
+delegate,"When you are praying, how often do you ""give it to God"" -- i.e. relinquish responsibility over the problem (or parts of the problem) you are praying about?Ê",num,Never to Always,"coded 0-4, scaled from 0-1"
+conflict,How often does prayer help you resolve conflict with someone else? ,num,Never to Always,"coded 0-4, scaled from 0-1"
+connected,How often does prayer make you feel more connected to the people you are praying about?,num,Never to Always,"coded 0-4, scaled from 0-1"
+positive ,"When you pray about someone, does it make you feel more positively towards them?",num,Never to Always,"coded 0-4, scaled from 0-1"
+charity,Do you feel more charitable towards a person who is difficult for you because of praying for them?,num,Never to Always,"coded 0-4, scaled from 0-1"
+values,How often does prayer remind you of important values?,num,Never to Always,"coded 0-4, scaled from 0-1"
+relief,How often do you feel a sense of relief after you pray?,num,Never to Always,"coded 0-4, scaled from 0-1"
+motivated,How often does prayer make you feel more motivated to tackle a problem in your life?,num,Never to Always,"coded 0-4, scaled from 0-1"
+heart,How often do you think God makes internal changes within you as a result of your prayer?,num,"Always to Never, plus Other write in option","Coded 0-5 (""Other"" coded as 2), scaled from 0-1"
+others,How often do you think God makes internal changes within someone else as a result of your prayer? ,num,"Always to Never, plus Other write in option","Coded 0-5 (""Other"" coded as 2), scaled from 0-1"
+intervene,How often do you think God physically intervenes in a situation as a result of your prayer? ,num,"Always to Never, plus Other write in option","Coded 0-5 (""Other"" coded as 2), scaled from 0-1"
